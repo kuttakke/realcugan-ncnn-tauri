@@ -67,7 +67,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.khoshghadam.vite-tauri",
+      "identifier": "com.realcugan-ncnn-tauri",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -84,7 +84,10 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "wix": {
+          "language": "zh-CN"
+        }
       }
     },
     "security": {
@@ -98,7 +101,7 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "Vite Tauri Template",
+        "title": "realcugan-ncnn-tauri",
         "width": 1000,
         "fileDropEnabled": false
       }
