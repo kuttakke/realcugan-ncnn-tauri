@@ -200,6 +200,7 @@ const startMagnification = async () => {
 
   console.log("end magnification");
   is_running.value = false;
+  $message.success("✨所有任务完成🎈");
 };
 </script>
 
