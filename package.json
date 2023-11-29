@@ -1,6 +1,6 @@
 {
-  "name": "vite-tauri-template",
-  "description": "Vite + Tauri + Vuetify bundled together to use",
+  "name": "realcugan-ncnn-tauri",
+  "description": "A Realcugan-ncnn desktop program, based on tauri",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -17,18 +17,24 @@
     "roboto-fontface": "0.10.0",
     "unified-network": "0.6.4",
     "vue": "3.3.4",
+    "vue-toastification": "^2.0.0-rc.5",
+    "vue-waterfall-plugin-next": "^2.2.9",
     "vuetify": "3.3.7"
   },
   "devDependencies": {
     "@tauri-apps/cli": "1.4.0",
     "@vitejs/plugin-vue": "4.0.0",
     "cross-env": "7.0.3",
+    "eslint": "^8.54.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-vue": "^9.18.1",
     "sass": "1.63.6",
     "vite": "4.4.2",
     "vite-plugin-vuetify": "1.0.2"
   },
   "main": "index.js",
   "repository": "git@github.com:yooneskh/vite-vuetify-template.git",
-  "author": "Yoones Khoshghadam <yooneskh@gmail.com>",
+  "author": "kuttake@outlook.com",
   "license": "MIT"
 }

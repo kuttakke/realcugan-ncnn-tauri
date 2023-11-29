@@ -4,10 +4,11 @@
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
     "devPath": "http://localhost:8080",
-    "distDir": "../dist"
+    "distDir": "../dist",
+    "withGlobalTauri": true
   },
   "package": {
-    "productName": "vite-tauri-template",
+    "productName": "realcugan-ncnn-tauri",
     "version": "0.1.0"
   },
   "tauri": {
@@ -19,6 +20,36 @@
           "https://**",
           "http://**"
         ]
+      },
+      "fs": {
+        "all": true,
+        "exists": true,
+        "scope": [
+          "$RESOURCE/*",
+          "$RESOURCE/**",
+          "$RESOURCE"
+        ]
+      },
+      "path": {
+        "all": true
+      },
+      "shell": {
+        "all": false,
+        "execute": true,
+        "open": false,
+        "scope": [
+          {
+            "name": "realcugan",
+            "cmd": "./resources/realcugan-ncnn-vulkan.exe",
+            "args": true
+          },
+          {
+            "name": "openResult",
+            "cmd": "explorer",
+            "args": true
+          }
+        ],
+        "sidecar": false
       }
     },
     "bundle": {
@@ -45,7 +76,9 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [],
+      "resources": [
+        "resources/*"
+      ],
       "shortDescription": "",
       "targets": "all",
       "windows": {
@@ -66,7 +99,8 @@
         "height": 600,
         "resizable": true,
         "title": "Vite Tauri Template",
-        "width": 800
+        "width": 1000,
+        "fileDropEnabled": false
       }
     ]
   }
