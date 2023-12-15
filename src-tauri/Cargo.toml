@@ -1,6 +1,6 @@
 [package]
 name = "realcugan-ncnn-tauri"
-version = "0.2.0"
+version = "0.2.2"
 description = "A Tauri App for realcugan-ncnn"
 authors = ["kutake"]
 license = ""
@@ -24,6 +24,7 @@ tauri = { version = "1.0.4", features = [ "updater", "window-show", "window-unmi
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1", features = ["colored"] }
 futures-lite = "2.1.0"
 window-shadows = "0.2.2"
+winapi = "0.3.9"
 
 [features]
 # by default Tauri runs in production mode
