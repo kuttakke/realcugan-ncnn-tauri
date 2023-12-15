@@ -28,14 +28,6 @@
         "asset": true,
         "assetScope": ["$RESOURCE/*", "$RESOURCE/**", "$RESOURCE"]
       },
-      "http": {
-        "all": true,
-        "request": true,
-        "scope": [
-          "https://github.com/kuttakke/realcugan-ncnn-tauri/**",
-          "https://gist.github.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
-        ]
-      },
       "fs": {
         "all": false,
         "exists": true,
@@ -109,7 +101,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://gist.github.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
+        "https://gist.githubusercontent.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
       ],
       "dialog": true,
       "windows": {
