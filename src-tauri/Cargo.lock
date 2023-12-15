@@ -2898,6 +2898,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
+ "winapi",
  "window-shadows",
 ]
 

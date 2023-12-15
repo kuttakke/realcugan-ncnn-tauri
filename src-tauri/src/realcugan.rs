@@ -1,10 +1,12 @@
+use async_process::windows::CommandExt;
 use async_process::{Command, Stdio};
 use futures_lite::{io::BufReader, prelude::*};
 use log::{error, info};
+use std::fs;
 use std::path::Path;
 use tauri::Manager;
-use std::fs;
-
+#[cfg(target_os = "windows")]
+use winapi::um::winbase::CREATE_NO_WINDOW;
 
 #[derive(Clone, serde::Serialize)]
 pub struct RealcuganResult {
@@ -91,8 +93,12 @@ pub async fn run_realcugan<'a>(
             tta,
         ])
         .stdout(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
         .stderr(Stdio::piped())
         .spawn();
+    // #[cfg(target_os = "windows")]
+    // command.creation_flags(CREATE_NO_WINDOW);
+
     let mut child = match result {
         Ok(child) => child,
         Err(e) => {
