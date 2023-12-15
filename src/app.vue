@@ -102,6 +102,7 @@ onMounted(() => {
   user-select: none;
 }
 
+/* scrollbar */
 html::-webkit-scrollbar {
   width: 10px;
   display: none;
