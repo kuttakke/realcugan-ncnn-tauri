@@ -32,8 +32,8 @@
         "all": true,
         "request": true,
         "scope": [
-          "https://**",
-          "http://**"
+          "https://github.com/kuttakke/realcugan-ncnn-tauri/**",
+          "https://gist.github.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
         ]
       },
       "fs": {
@@ -43,11 +43,7 @@
         "readFile": true,
         "createDir": true,
         "readDir": true,
-        "scope": [
-          "$RESOURCE/*",
-          "$RESOURCE/**",
-          "$RESOURCE"
-        ]
+        "scope": ["$RESOURCE/*", "$RESOURCE/**", "$RESOURCE"]
       },
       "path": {
         "all": true
@@ -95,9 +91,7 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [
-        "resources/*"
-      ],
+      "resources": ["resources/*"],
       "shortDescription": "",
       "targets": "all",
       "windows": {
@@ -113,7 +107,15 @@
       "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"
     },
     "updater": {
-      "active": false
+      "active": true,
+      "endpoints": [
+        "https://gist.github.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
+      ],
+      "dialog": true,
+      "windows": {
+        "installMode": "passive"
+      },
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJGNDQwMDNFRTQzNkVCODAKUldTQTZ6YmtQZ0JFTDdSRkswSlRNVWk0SXcvbTk1SDZqbnZ1RzNoQmVrRm4vR09LUC9uWTBVRmoK"
     },
     "windows": [
       {
