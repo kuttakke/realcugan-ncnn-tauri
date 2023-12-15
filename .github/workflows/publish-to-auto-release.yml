@@ -38,13 +38,15 @@ jobs:
       - name: install frontend dependencies
         run: yarn install # change this to npm or pnpm depending on which one you use
 
+      - name: build frontend
+        run: yarn cross-env VITE_NETWORK_PROCESSOR=tauri vite build
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          args: yarn build
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
           releaseName: "App v__VERSION__"
           releaseBody: "See the assets to download this version and install."
