@@ -93,7 +93,7 @@ onMounted(() => {
       </Suspense>
     </v-container>
     <!-- </v-main> -->
-    <v-footer inset app> realcugan-ncnn-tauri@v0.2.0 </v-footer>
+    <v-footer inset app> realcugan-ncnn-tauri@v0.2.1 </v-footer>
   </v-app>
 </template>
 
