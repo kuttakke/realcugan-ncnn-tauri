@@ -28,14 +28,6 @@
         "asset": true,
         "assetScope": ["$RESOURCE/*", "$RESOURCE/**", "$RESOURCE"]
       },
-      "http": {
-        "all": true,
-        "request": true,
-        "scope": [
-          "https://**",
-          "http://**"
-        ]
-      },
       "fs": {
         "all": false,
         "exists": true,
@@ -43,11 +35,7 @@
         "readFile": true,
         "createDir": true,
         "readDir": true,
-        "scope": [
-          "$RESOURCE/*",
-          "$RESOURCE/**",
-          "$RESOURCE"
-        ]
+        "scope": ["$RESOURCE/*", "$RESOURCE/**", "$RESOURCE"]
       },
       "path": {
         "all": true
@@ -95,9 +83,7 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [
-        "resources/*"
-      ],
+      "resources": ["resources/*"],
       "shortDescription": "",
       "targets": "all",
       "windows": {
@@ -110,10 +96,18 @@
       }
     },
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost"
     },
     "updater": {
-      "active": false
+      "active": true,
+      "endpoints": [
+        "https://gist.githubusercontent.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
+      ],
+      "dialog": true,
+      "windows": {
+        "installMode": "passive"
+      },
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJGNDQwMDNFRTQzNkVCODAKUldTQTZ6YmtQZ0JFTDdSRkswSlRNVWk0SXcvbTk1SDZqbnZ1RzNoQmVrRm4vR09LUC9uWTBVRmoK"
     },
     "windows": [
       {

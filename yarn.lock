@@ -2297,6 +2297,11 @@ viewerjs@^1.11.6, viewerjs@^1.9.0:
   resolved "https://registry.npmmirror.com/viewerjs/-/viewerjs-1.11.6.tgz#19a1e78c15eba5a9fbbf34ebc5ab312d6e8932ed"
   integrity sha512-TlhdSp2oEOLFXvEp4psKaeTjR5zBjTRcM/sHUN8PkV1UWuY8HKC8n7GaVdW5Xqnwdr/F1OmzLik1QwDjI4w/nw==
 
+vite-plugin-css-injected-by-js@^3.3.0:
+  version "3.3.0"
+  resolved "https://registry.npmmirror.com/vite-plugin-css-injected-by-js/-/vite-plugin-css-injected-by-js-3.3.0.tgz#c19480a9e42a95c5bced976a9dde1446f9bd91ff"
+  integrity sha512-xG+jyHNCmUqi/TXp6q88wTJGeAOrNLSyUUTp4qEQ9QZLGcHWQQsCsSSKa59rPMQr8sOzfzmWDd8enGqfH/dBew==
+
 vite-plugin-vuetify@1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/vite-plugin-vuetify/-/vite-plugin-vuetify-1.0.2.tgz#d1777c63aa1b3a308756461b3d0299fd101ee8f4"
