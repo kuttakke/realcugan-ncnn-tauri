@@ -18,7 +18,10 @@ if (nowTheme.value.includes("dark") || nowTheme.value.includes("Dark")) {
 } else {
   theme.global.name.value = myThemes[1];
 }
-
+ // 阻止默认事件Function
+const forbidDefaultEvent = (e) => {
+    e.preventDefault();
+  }
 const setTheme = () => {
   if (isDark.value) {
     theme.global.name.value = myThemes[0];
@@ -48,7 +51,12 @@ const setDragAttr = () => {
   const dragRegion = document.querySelector("[data-tauri-drag-region]");
   changeChildAttr(dragRegion);
 };
-onMounted(setDragAttr);
+onMounted(() => {
+  setDragAttr()
+  // NOTE - 阻止游览器默认事件
+  document.addEventListener("drop", forbidDefaultEvent);
+  document.addEventListener("dragover", forbidDefaultEvent);
+});
 </script>
 
 <template>
