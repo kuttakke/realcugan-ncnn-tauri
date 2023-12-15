@@ -1,8 +1,8 @@
 [package]
 name = "realcugan-ncnn-tauri"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "0.2.0"
+description = "A Tauri App for realcugan-ncnn"
+authors = ["kutake"]
 license = ""
 repository = ""
 default-run = "realcugan-ncnn-tauri"
@@ -15,9 +15,15 @@ rust-version = "1.57"
 tauri-build = { version = "1.0.4", features = [] }
 
 [dependencies]
+sentry-tauri = "0.2"
 serde_json = "1.0"
+log = "^0.4"
+async-process = "2.0.1"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.0.4", features = [ "shell-execute", "path-all", "fs-all", "http-all"] }
+tauri = { version = "1.0.4", features = [ "window-show", "window-unminimize", "window-hide", "window-start-dragging", "window-unmaximize", "window-set-fullscreen", "window-minimize", "window-maximize", "window-close", "window-set-min-size", "protocol-asset", "fs-read-dir", "fs-read-file", "fs-exists", "fs-write-file", "fs-create-dir", "shell-execute", "path-all", "http-all"] }
+tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1", features = ["colored"] }
+futures-lite = "2.1.0"
+window-shadows = "0.2.2"
 
 [features]
 # by default Tauri runs in production mode

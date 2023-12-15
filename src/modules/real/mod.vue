@@ -1,395 +1,484 @@
+<!-- eslint-disable vue/multi-word-component-names -->
+
 <script setup>
-import { ref, computed } from "vue";
-import { LazyImg, Waterfall } from "vue-waterfall-plugin-next";
+import "@uppy/core/dist/style.css";
+import "@uppy/dashboard/dist/style.css";
+import "@uppy/image-editor/dist/style.css";
+import "@uppy/file-input/dist/style.css";
+import "@uppy/status-bar/dist/style.min.css";
+import "@uppy/screen-capture/dist/style.min.css";
+
+import { invoke } from "@tauri-apps/api";
+import { listen } from "@tauri-apps/api/event";
 import {
-  writeBinaryFile,
-  readBinaryFile,
   BaseDirectory,
   createDir,
   exists,
+  writeBinaryFile,
 } from "@tauri-apps/api/fs";
+import { resolveResource } from "@tauri-apps/api/path";
+import { Command } from "@tauri-apps/api/shell";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { appWindow, PhysicalSize } from "@tauri-apps/api/window";
+import Uppy from "@uppy/core";
+import DashboardP from "@uppy/dashboard";
+import ImageEditor from "@uppy/image-editor";
+import Chinese from "@uppy/locales/lib/zh_CN";
+import { Dashboard } from "@uppy/vue";
+import { useStorage } from "@vueuse/core";
+import { error } from "tauri-plugin-log-api";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useToast } from "vue-toastification";
-import "vue-waterfall-plugin-next/dist/style.css";
-const magnification = ref(2);
-const noise_level = ref(-1);
-const is_tta = ref(false);
-const format = ref("png");
+
+import { isDark } from "../../plugins/dark/index";
+
+await appWindow.setMinSize(new PhysicalSize(960, 600));
+
+const magnification = useStorage("magnification", 2);
+const noise_level = useStorage("noise_level", -1);
+const is_tta = useStorage("is_tta", false);
+const format = useStorage("format", "png");
+const is_run_all = useStorage("is_run_all", true);
+
+const fakeNoiseLevelTick = {
+  0: "-1",
+  1: "0",
+  2: "3",
+};
+
+const isShowFakeNoiseLevel = ref(false);
+if (magnification.value !== 2) {
+  isShowFakeNoiseLevel.value = true;
+}
+
+watch(magnification, (newVal) => {
+  if (newVal === 2) {
+    isShowFakeNoiseLevel.value = false;
+  } else {
+    noise_level.value = parseInt(fakeNoiseLevelTick[fakeNoiseLevel.value]);
+    isShowFakeNoiseLevel.value = true;
+  }
+});
+
+const fakeNoiseLevel = ref(0);
+watch(fakeNoiseLevel, (newVal) => {
+  noise_level.value = parseInt(fakeNoiseLevelTick[newVal]);
+});
+
 const files = ref([]);
 const is_running = ref(false);
-const is_run_all = ref(true);
+// const is_run_all = ref(true);
+const uppy = new Uppy({
+  restrictions: {
+    allowedFileTypes: [".jpg", ".jpeg", ".png", ".webp"],
+  },
+  locale: Chinese,
+  metaFields: [{ id: "name", name: "Name", placeholder: "file name" }],
+});
+uppy.use(DashboardP, {
+  hideUploadButton: true,
+});
+uppy.use(ImageEditor, {
+  quality: 0.8,
+});
 
 const resultFiles = ref([]);
 
+const inserResultFiles = (img) => {
+  // check is exist
+  const index = resultFiles.value.findIndex((v) => v.mid === img.mid);
+  if (index !== -1) {
+    console.log(index);
+    resultFiles.value[index] = img;
+  } else {
+    resultFiles.value.push(img);
+  }
+};
+
 const $message = useToast();
 
-const progressLinearVal = computed(() => {
-  return (100 * resultFiles.value.length) / files.value.length;
+let unlisten = null;
+
+const changeFileProcessingStatus = (id, percent, status) => {
+  const file = uppy.getFile(id);
+  if (file != null) {
+    uppy.setFileState(id, {
+      progress: {
+        percentage: percent,
+        uploadStarted: status,
+        bytesUploaded: (file.progress.bytesTotal * percent) / 100,
+      },
+    });
+  }
+};
+
+const doneFileProcess = (id) => {
+  const file = uppy.getFile(id);
+  if (file != null) {
+    uppy.setFileState(id, {
+      progress: { uploadComplete: true, uploadStarted: true },
+    });
+  }
+};
+
+const setStart = (files) => {
+  for (const file of files) {
+    uppy.setFileState(file.id, {
+      progress: { uploadStarted: true, percentage: 0 },
+    });
+  }
+};
+
+async function listen_run() {
+  unlisten = await listen("run-status", async (event) => {
+    changeFileProcessingStatus(event.payload.id, event.payload.percent, true);
+  });
+}
+
+onMounted(() => {
+  listen_run();
 });
 
-const getresourceDir = async () => {
-  try {
-    const appDataDirPath = (await window.__TAURI__.path.resourceDir()).replace(
-      "\\\\?\\",
-      ""
-    );
+onUnmounted(() => {
+  if (unlisten != null) {
+    unlisten();
+  }
+});
 
-    console.log(appDataDirPath);
-    console.log(typeof appDataDirPath);
+const rawResourcePath = await resolveResource("");
+const getresourceDir = () => {
+  try {
+    const appDataDirPath = rawResourcePath.replace("\\\\?\\", "");
     return appDataDirPath;
   } catch (e) {
+    error(e);
     console.log(e);
   }
 };
 
 const chechPathExists = async () => {
   if (!(await exists("temp", { dir: BaseDirectory.Resource }))) {
-    console.log("create temp path");
     await createDir("temp", { dir: BaseDirectory.Resource });
   }
   if (!(await exists("result", { dir: BaseDirectory.Resource }))) {
-    console.log("create result path");
     await createDir("result", { dir: BaseDirectory.Resource });
   }
 };
 
-const resourcePath = await getresourceDir();
-const tempPath = resourcePath + "\\temp";
+const resourcePath = getresourceDir();
+// const tempPath = resourcePath + "\\temp";
 const resultPath = resourcePath + "\\result";
-
-const checkIsImage = (files) => {
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    if (!file.type.match("image.*")) {
-      console.log("not image file here");
-      return false;
-    }
-    file.url = window.URL.createObjectURL(file);
-    file.src = file.url;
-    console.log(file.url);
-  }
-  return true;
-};
-
-const rules = [(file) => checkIsImage(file) || "请选择图片文件"];
-
-const removeFile = (file) => {
-  console.log("remove file");
-  console.log(file);
-  files.value.splice(files.value.indexOf(file), 1);
-};
-
-const getNewFilePath = (file) => {
-  let lastDotIndex = file.name.lastIndexOf(".");
-  let fileNameWithoutExtension = "";
-  if (lastDotIndex !== -1) {
-    // 移除最后一个 . 以及其后的部分
-    fileNameWithoutExtension = file.name.slice(0, lastDotIndex);
-  } else {
-    fileNameWithoutExtension = file.name;
-  }
-  file.resultFileName =
-    magnification.value +
-    "_" +
-    noise_level.value +
-    "_" +
-    fileNameWithoutExtension +
-    "." +
-    format.value;
-
-  file.resultFilePath = resultPath + "\\" + file.resultFileName;
-  console.log("result name:", file.resultFilePath);
-};
 
 const openResult = async () => {
   const rp = resultPath.replace("\\\\", "\\").replace(/\\\\/g, "\\");
-  console.log(rp);
-  console.log([rp]);
-  await new window.__TAURI__.shell.Command("openResult", [rp]).execute();
+  await new Command("openResult", [rp]).execute();
 };
 
-const invokeMagnification = async (file) => {
-  getNewFilePath(file);
-  const commandStr = [
-    "-i",
-    tempPath + "\\" + file.name,
-    "-o",
-    file.resultFilePath,
-    "-n",
-    "" + noise_level.value,
-    "-f",
-    format.value,
-    "-s",
-    "" + magnification.value,
-    is_tta.value ? "-x" : "",
-  ];
-  console.log(commandStr);
+const invokeMagnificationAsync = async (file) => {
   try {
-    const output = await new window.__TAURI__.shell.Command(
-      "realcugan",
-      commandStr
-    ).execute();
-    console.log(output.stderr);
-    console.log(output.stdout);
-    console.log(output.code);
-    $message.success("图片处理成功: " + file.name);
+    const res = await invoke("run_realcugan", {
+      fileId: file.id,
+      inputFile: file.meta.name,
+      numMagnification: magnification.value,
+      numNoiseLevel: noise_level.value,
+      isTta: is_tta.value,
+      formatType: format.value,
+    });
+    file.resultFileName = res.output;
+    doneFileProcess(file.id);
     return true;
   } catch (e) {
-    console.log(e);
-    $message.error("图片处理失败: " + file.name);
+    $message.error(file.name + "图片处理失败: " + e.output);
     return false;
   }
 };
 
-// console.log(currentDir);
 const magnificationOne = async (file) => {
-  const conetent = await file.arrayBuffer();
+  const conetent = await file.data.arrayBuffer();
   // 保存至tempPath
   try {
     await writeBinaryFile(
       {
-        path: "temp/" + file.name,
+        path: "temp/" + file.meta.name,
         contents: new Uint8Array(conetent),
       },
       { dir: BaseDirectory.Resource }
     );
-    console.log("save file at", tempPath + "\\" + file.name);
-    $message.info("图片保存成功: " + file.name);
   } catch (e) {
-    console.log("save file error", e);
+    $message.error("图片保存失败: " + file.meta.name);
     return;
   }
-  await invokeMagnification(file);
+  let result = await invokeMagnificationAsync(file);
+  if (!result) {
+    return;
+  }
 
   try {
-    // return a Promise<Uint8Array>
-    const newFileBinary = await readBinaryFile(
-      "result/" + file.resultFileName,
-      { dir: BaseDirectory.Resource }
+    const newUrl = convertFileSrc(
+      rawResourcePath + "result\\" + file.resultFileName
     );
-    // create a new url for the file
-    const newFileUrl = URL.createObjectURL(new Blob([newFileBinary]));
-    // create a new file object and add to resultFiles
-    const newFile = new File([newFileBinary], file.resultFileName, {
-      type: file.type,
-    });
-    newFile.url = newFileUrl;
-    newFile.src = newFile.url;
-    resultFiles.value.push(newFile);
-    $message.success("结果图片保存成功: " + file.name);
+    const newImage = new Image();
+    newImage.src = newUrl;
+    newImage.url = newUrl;
+    newImage.resultFileName = file.resultFileName;
+    newImage.mid = file.id;
+
+    // resultFiles.value.push(newImage);
+    inserResultFiles(newImage);
   } catch (e) {
-    console.log("read file error", e);
-    $message.error("结果图片保存失败: " + file.name);
+    $message.error("结果图片保存失败: " + file.meta.name);
   }
 };
 
+async function asyncPool(poolLimit, array, iteratorFn) {
+  const ret = []; //2
+  const executing = []; //3
+  for (const item of array) {
+    //4
+    const p = Promise.resolve().then(() => iteratorFn(item)); //5
+    ret.push(p); //6
+    if (poolLimit <= array.length) {
+      //7
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1)); //8
+      executing.push(e); //9
+      if (executing.length >= poolLimit) {
+        //10
+        await Promise.race(executing); //11
+      }
+    }
+  }
+  return Promise.all(ret); //15
+}
+
 const startMagnification = async () => {
-  console.log("start magnification");
+  const ufiles = uppy.getFiles();
+  const realFiles = ufiles.filter(
+    (item) => !resultFiles.value.some((res) => res.mid === item.id)
+  );
+  if (realFiles.length === 0) {
+    $message.error("没有需要处理的图片");
+    return;
+  }
   is_running.value = true;
+  setStart(realFiles);
   await chechPathExists();
   if (is_run_all.value) {
-    await Promise.all(
-      files.value.map(async (file) => {
-        await magnificationOne(file);
-      })
-    );
+    await asyncPool(4, realFiles, magnificationOne);
   } else {
     for (const file of files.value) {
       await magnificationOne(file);
     }
   }
-
-  console.log("end magnification");
   is_running.value = false;
   $message.success("✨所有任务完成🎈");
 };
 </script>
 
 <template>
-  <div class="container">
-    <v-navigation-drawer class="bg-deep-purple" theme="dark" permanent>
-      <v-card title="二次元图片放大✨"></v-card>
-      <v-list density="compact" nav color="transparent" lines="two">
-        <v-list-item title="" subtitle="">
-          <v-slider
-            v-model="magnification"
-            :ticks="[2, 3, 4]"
-            step="1"
-            max="4"
-            min="2"
-            show-ticks="always"
-            label="放大倍数"
-          ></v-slider>
-        </v-list-item>
-        <v-list-item>
-          <v-slider
-            v-model="noise_level"
-            :ticks="[-1, 0, 1, 2, 3]"
-            step="1"
-            max="3"
-            min="-1"
-            show-ticks="always"
-            label="降噪等级"
-          ></v-slider>
-        </v-list-item>
-        <v-divider></v-divider>
-        <v-list-item>
-          <v-switch v-model="is_tta" label="TTA模式" inset></v-switch>
-          <template v-slot:append>
-            <v-btn icon="mdi-information">
-              <v-tooltip activator="parent" location="top">
+  <div>
+    <div class="container-real">
+      <v-navigation-drawer permanent floating>
+        <v-list density="compact" nav color="transparent">
+          <v-list-item title="" subtitle="">
+            <v-slider
+              color="primary"
+              v-model="magnification"
+              :ticks="[2, 3, 4]"
+              step="1"
+              max="4"
+              min="2"
+              show-ticks="always"
+              label="放大倍数"
+              style="height: 50px"
+            ></v-slider>
+          </v-list-item>
+          <v-list-item title="">
+            <v-slider
+              v-if="!isShowFakeNoiseLevel"
+              color="primary"
+              v-model="noise_level"
+              :ticks="[-1, 0, 1, 2, 3]"
+              step="1"
+              max="3"
+              min="-1"
+              show-ticks="always"
+              label="降噪等级"
+              style="height: 50px"
+            ></v-slider>
+            <v-slider
+              v-else
+              color="primary"
+              v-model="fakeNoiseLevel"
+              :ticks="fakeNoiseLevelTick"
+              step="1"
+              max="2"
+              min="0"
+              show-ticks="always"
+              label="降噪等级"
+              style="height: 50px"
+            ></v-slider>
+          </v-list-item>
+          <v-divider></v-divider>
+          <v-list-item>
+            <v-switch
+              v-model="is_tta"
+              label="TTA模式"
+              inset
+              color="primary"
+            ></v-switch>
+            <template v-slot:append>
+              <v-tooltip activator="parent" location="right">
+                <!-- eslint-disable-next-line vue/no-unused-vars -->
                 <template v-slot:activator="{ on }">
-                  <v-icon v-on="on" color="primary" dark>
-                    mdi-information
-                  </v-icon> </template
-                >不是很清楚是干什么用的</v-tooltip
-              >
-            </v-btn>
-          </template>
-        </v-list-item>
-        <v-list-item>
-          <v-switch v-model="is_run_all" label="快速模式" inset></v-switch>
-          <template v-slot:append>
-            <v-btn icon="mdi-information">
-              <v-tooltip activator="parent" location="top">
-                <template v-slot:activator="{ on }">
-                  <v-icon v-on="on" color="primary" dark>
+                  <v-icon color="primary" class="text-center">
                     mdi-information
                   </v-icon>
                 </template>
-                显存要是爆了就关了吧</v-tooltip
+                <span
+                  >转换时间较未选中时增加八倍，提高0.15的峰值信噪比（PSNR），效果可能不明显</span
+                >
+              </v-tooltip>
+            </template>
+          </v-list-item>
+          <v-list-item>
+            <v-switch
+              v-model="is_run_all"
+              label="快速模式"
+              inset
+              color="primary"
+            ></v-switch>
+            <template v-slot:append>
+              <v-tooltip activator="parent" location="right">
+                <!-- eslint-disable-next-line vue/no-unused-vars -->
+                <template v-slot:activator="{ on }">
+                  <v-icon color="primary"> mdi-information </v-icon>
+                </template>
+                并行执行(最大4任务)，报错请关闭</v-tooltip
               >
+            </template>
+          </v-list-item>
+          <v-list-item title="" subtitle="">
+            <v-select
+              v-model="format"
+              :items="['png', 'jpg', 'webp']"
+              label="输出格式"
+            ></v-select>
+          </v-list-item>
+          <v-list-item title="">
+            <v-btn
+              color="primary"
+              @click="startMagnification"
+              :loading="is_running"
+              :disabled="is_running"
+              :outlined="true"
+            >
+              <span class="hidden-sm-and-down">开始</span>
             </v-btn>
-          </template>
-        </v-list-item>
-        <v-list-item title="" subtitle="">
-          <v-select
-            v-model="format"
-            :items="['png', 'jpg', 'webp']"
-            label="输出格式"
-          ></v-select>
-        </v-list-item>
-        <v-list-item title="">
-          <v-btn
-            @click="startMagnification"
-            :loading="is_running"
-            :disabled="is_running"
-            color="deep-purple-accent-4"
-            :outlined="true"
-          >
-            <span class="hidden-sm-and-down">开始</span>
-          </v-btn>
-          <template v-slot:append>
-            <v-btn color="deep-purple-accent-4" @click="openResult">
-              <span class="hidden-sm-and-down">打开结果文件夹</span>
-            </v-btn>
-          </template>
-        </v-list-item>
-      </v-list>
+            <template v-slot:append>
+              <v-btn @click="openResult" color="primary">
+                <span class="hidden-sm-and-down">打开结果文件夹</span>
+              </v-btn>
+            </template>
+          </v-list-item>
+        </v-list>
 
-      <v-divider></v-divider>
-    </v-navigation-drawer>
-  </div>
-  <div class="content">
-    <div class="file-drop-box">
-      <p class="text-h5">上传图片文件，可拖拽</p>
+        <v-divider></v-divider>
+      </v-navigation-drawer>
     </div>
-    <br />
-    <v-file-input
-      v-model="files"
-      color="deep-purple-accent-4"
-      :rules="rules"
-      counter
-      label="File input"
-      multiple
-      placeholder="Select your files"
-      accept="image/png, image/jpeg, image/jpg"
-      prepend-icon="mdi-image"
-      variant="outlined"
-      :active="!is_running"
-      :show-size="1000"
-    >
-      <template v-slot:selection="{ fileNames }">
-        <template v-for="(fileName, index) in fileNames" :key="fileName">
-          <v-chip
-            v-if="index < 2"
-            color="deep-purple-accent-4"
-            label
-            size="small"
-            class="me-2"
-          >
-            {{ fileName }}
-          </v-chip>
+    <v-main class="content">
+      <div class="dashboard-content">
+        <dashboard
+          ref="dash"
+          :uppy="uppy"
+          :props="{
+            metaFields: [
+              { id: 'name', name: 'Name', placeholder: 'file name' },
+            ],
+            width:600,
+            height:300,
+            hideUploadButton: true,
+            disableStatusBar: true,
+            locale: {
+              strings: {
+                uploadFailed: '放大失败',
+                filesUploadedOfTotal:
+                  '已放大 %{smart_count} 个图片中的 %{complete} 个',
+                xMoreFilesAdded: '又有 %{smart_count} 个图片被添加',
+                upload: '开始放大',
+                uploading: '放大中',
+                uploadingXFiles: '正在放大 %{smart_count} 个图片',
+                uploadXNewFiles: '新放大了 %{smart_count} 个文件',
+                xFilesSelected: '%{smart_count} 个图片等待放大',
+                poweredBy: '',
+              },
+            },
+            theme: isDark ? 'dark' : 'light',
+          }"
+          :plugins="['ImageEditor']"
+        >
+        </dashboard>
+      </div>
 
-          <span
-            v-else-if="index === 2"
-            class="text-overline text-grey-darken-3 mx-2"
-          >
-            +{{ files.length - 2 }} File(s)
-          </span>
-        </template>
-      </template>
-    </v-file-input>
-    <br />
-    <v-progress-linear
-      v-model="progressLinearVal"
-      color="blue-grey"
-      height="25"
-      v-if="is_running"
-      striped
-    >
-      <template v-slot:default="{ value }">
-        <strong>{{ Math.ceil(value) }}%</strong>
-      </template>
-    </v-progress-linear>
-    <!-- 图片卡片展示 -->
-    <v-sheet
-      class="mx-auto"
-      elevation="8"
-      max-width="800"
-      v-show="files.length"
-    >
-      <v-slide-group class="pa-4" center-active show-arrows>
-        <v-slide-group-item
-          v-for="(file, n) in files"
-          :key="n"
-          v-slot="{ isSelected, toggle }"
+      <br />
+      <!-- 图片结果展示 -->
+      <div class="magnification-images" v-show="resultFiles.length">
+        <!-- <v-row v-viewer transition-duration="0.3s"> -->
+        <masonry
+          v-viewer
+          transition-duration="0.3s"
+          :cols="{ default: 3, 700: 2, 400: 1 }"
+          :gutter="30"
         >
           <v-card
-            :color="isSelected ? 'primary' : 'grey-lighten-1'"
-            class="ma-4 slide-group-item-t"
-            height="200"
-            width="100"
-            :image="file.url"
-            @click="toggle"
+            class="pb-1 mt-2"
+            v-for="(item, index) in resultFiles"
+            :key="item.mid"
           >
-            <div class="d-flex fill-height align-center justify-center">
-              <v-scale-transition>
-                <v-icon
-                  v-if="isSelected"
-                  color="red"
-                  size="48"
-                  icon="mdi-close-circle-outline"
-                  @click="removeFile(file)"
-                ></v-icon>
-              </v-scale-transition>
-            </div>
+            <v-img :src="item.src">
+              <template v-slot:placeholder>
+                <v-row class="fill-height ma-0" align="center" justify="center">
+                  <v-progress-circular
+                    indeterminate
+                    color="grey-lighten-5"
+                  ></v-progress-circular>
+                </v-row>
+              </template>
+            </v-img>
+            <v-card-text>{{ item.resultFileName }}</v-card-text>
           </v-card>
-        </v-slide-group-item>
-      </v-slide-group>
-    </v-sheet>
-    <div class="magnification-images" v-show="resultFiles.length">
-      <Waterfall :list="resultFiles">
-        <template #item="{ item, url, index }">
-          <v-expand-transition>
-            <v-card>
-              <LazyImg :url="url" />
-              <p class="text">{{ item.name }}</p>
-            </v-card>
-          </v-expand-transition>
-        </template>
-      </Waterfall>
-    </div>
+        </masonry>
+      </div>
+      <br />
+    </v-main>
   </div>
 </template>
 
-<style scoped></style>
+<style>
+.v-input__details {
+  display: none !important;
+}
+
+.container-real {
+  user-select: none !important;
+}
+
+.v-card .v-img {
+  user-select: none !important;
+}
+
+.uppy-Dashboard-Item-preview {
+  user-select: none !important;
+}
+
+.dashboard-content {
+  justify-items: center;
+}
+
+.v-container {
+  max-width: max-content !important;
+}
+
+.uppy-Dashboard-AddFiles-title {
+  user-select: none;
+}
+</style>
