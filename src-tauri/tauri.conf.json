@@ -4,15 +4,30 @@
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
     "devPath": "http://localhost:8080",
-    "distDir": "../dist",
-    "withGlobalTauri": true
+    "distDir": "../dist"
   },
   "package": {
     "productName": "realcugan-ncnn-tauri",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "tauri": {
     "allowlist": {
+      "window": {
+        "setMinSize": true,
+        "setFullscreen": true,
+        "close": true,
+        "hide": true,
+        "show": true,
+        "maximize": true,
+        "minimize": true,
+        "unmaximize": true,
+        "unminimize": true,
+        "startDragging": true
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": ["$RESOURCE/*", "$RESOURCE/**", "$RESOURCE"]
+      },
       "http": {
         "all": true,
         "request": true,
@@ -22,8 +37,12 @@
         ]
       },
       "fs": {
-        "all": true,
+        "all": false,
         "exists": true,
+        "writeFile": true,
+        "readFile": true,
+        "createDir": true,
+        "readDir": true,
         "scope": [
           "$RESOURCE/*",
           "$RESOURCE/**",
@@ -91,19 +110,22 @@
       }
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"
     },
     "updater": {
       "active": false
     },
     "windows": [
       {
+        "label": "main",
         "fullscreen": false,
         "height": 600,
         "resizable": true,
         "title": "realcugan-ncnn-tauri",
         "width": 1000,
-        "fileDropEnabled": false
+        "fileDropEnabled": false,
+        "center": true,
+        "decorations": false
       }
     ]
   }
