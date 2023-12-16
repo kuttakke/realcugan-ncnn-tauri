@@ -9,7 +9,15 @@ export default defineConfig({
     port: 8080,
     strictPort: true,
   },
-  envPrefix: ["VITE_", "TAURI_"],
+  envPrefix: [
+    "VITE_",
+    "TAURI_PLATFORM",
+    "TAURI_ARCH",
+    "TAURI_FAMILY",
+    "TAURI_PLATFORM_VERSION",
+    "TAURI_PLATFORM_TYPE",
+    "TAURI_DEBUG",
+  ],
   build: {
     target: ["es2021", "chrome97", "safari13"],
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
