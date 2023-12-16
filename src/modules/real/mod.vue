@@ -365,7 +365,7 @@ const startMagnification = async () => {
               label="输出格式"
             ></v-select>
           </v-list-item>
-          <v-list-item title="">
+          <v-list-item title="" class="mt-3">
             <v-btn
               color="primary"
               @click="startMagnification"
@@ -419,8 +419,7 @@ const startMagnification = async () => {
         >
         </dashboard>
       </div>
-
-      <br />
+      <v-divider class="mt-4"></v-divider>
       <!-- 图片结果展示 -->
       <div class="magnification-images" v-show="resultFiles.length">
         <!-- <v-row v-viewer transition-duration="0.3s"> -->

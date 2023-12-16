@@ -159,6 +159,9 @@ onMounted(() => {
 .v-app-bar-title {
   user-select: none;
 }
+.v-footer {
+  user-select: none;
+}
 
 /* scrollbar */
 html::-webkit-scrollbar {
