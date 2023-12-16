@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "realcugan-ncnn-tauri",
-    "version": "0.2.2"
+    "version": "0.2.3"
   },
   "tauri": {
     "allowlist": {
@@ -43,7 +43,7 @@
       "shell": {
         "all": false,
         "execute": true,
-        "open": false,
+        "open": true,
         "scope": [
           {
             "name": "realcugan",
@@ -96,7 +96,7 @@
       }
     },
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost blob: https://tauri.localhost"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost blob: https://tauri.localhost data:"
     },
     "updater": {
       "active": true,

@@ -1,9 +1,8 @@
 <script setup>
-
-
+import { open } from "@tauri-apps/api/shell";
 import { appWindow } from "@tauri-apps/api/window";
 import { useStorage } from "@vueuse/core";
-import { onMounted } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useTheme } from "vuetify";
 
 import Real from "./modules/real/mod.vue";
@@ -11,6 +10,19 @@ import { isDark, toggleDark } from "./plugins/dark";
 
 const theme = useTheme();
 const myThemes = ["draculaDark", "nord"];
+const magnification = useStorage("magnification", 2);
+const thumbList = ["😄", "😁", "😍"];
+const thumb = ref(thumbList[magnification.value - 2]);
+
+const overlay = ref(false);
+
+watch(magnification, (val) => {
+  thumb.value = thumbList[val - 2];
+});
+
+const openGithub = async () => {
+  await open("https://github.com/kuttakke/realcugan-ncnn-tauri");
+};
 
 const nowTheme = useStorage("theme", isDark.value ? "dark" : "light");
 if (nowTheme.value.includes("dark") || nowTheme.value.includes("Dark")) {
@@ -18,10 +30,10 @@ if (nowTheme.value.includes("dark") || nowTheme.value.includes("Dark")) {
 } else {
   theme.global.name.value = myThemes[1];
 }
- // 阻止默认事件Function
+// 阻止默认事件Function
 const forbidDefaultEvent = (e) => {
-    e.preventDefault();
-  }
+  e.preventDefault();
+};
 const setTheme = () => {
   if (isDark.value) {
     theme.global.name.value = myThemes[0];
@@ -52,7 +64,7 @@ const setDragAttr = () => {
   changeChildAttr(dragRegion);
 };
 onMounted(() => {
-  setDragAttr()
+  setDragAttr();
   // NOTE - 阻止游览器默认事件
   document.addEventListener("drop", forbidDefaultEvent);
   document.addEventListener("dragover", forbidDefaultEvent);
@@ -62,13 +74,13 @@ onMounted(() => {
 <template>
   <v-app>
     <v-app-bar color="" density="compact" data-tauri-drag-region>
-      <v-app-bar-title>二次元图片放大✨</v-app-bar-title>
+      <v-app-bar-title>二次元风格图片放大{{ thumb }}</v-app-bar-title>
 
       <v-spacer></v-spacer>
       <Transition>
-        <v-btn icon none-drag-region>
-          <v-icon @click="changeTheme" v-if="isDark">mdi-weather-night</v-icon>
-          <v-icon @click="changeTheme" v-else>mdi-weather-sunny</v-icon>
+        <v-btn icon none-drag-region @click="changeTheme">
+          <v-icon v-if="isDark">mdi-weather-night</v-icon>
+          <v-icon v-else>mdi-weather-sunny</v-icon>
         </v-btn>
       </Transition>
       <v-btn icon none-drag-region>
@@ -93,7 +105,53 @@ onMounted(() => {
       </Suspense>
     </v-container>
     <!-- </v-main> -->
-    <v-footer inset app> realcugan-ncnn-tauri@v0.2.2 </v-footer>
+    <!-- <v-footer inset app> realcugan-ncnn-tauri@v0.2.2 </v-footer> -->
+    <v-footer inset app>
+      <div class="d-flex w-100 align-center">
+        <strong>realcugan-ncnn-tauri</strong>
+
+        <v-spacer></v-spacer>
+
+        <v-btn
+          class="mx-4"
+          icon="mdi-github"
+          variant="plain"
+          size="small"
+          @click="overlay = !overlay"
+        ></v-btn>
+      </div>
+    </v-footer>
+    <v-overlay
+      :model-value="overlay"
+      class="align-center justify-center"
+      @click:outside="overlay = false"
+    >
+      <v-card v-intersect="onIntersect" class="mx-auto" max-width="336">
+        <v-card-title :onclick="openGithub"
+          >realcugan-ncnn-tauri@v0.2.3</v-card-title
+        >
+        <v-card-subtitle>降噪参数解释</v-card-subtitle>
+        <v-card-text>
+          <v-list lines="one">
+            <v-list-item title="降噪版(1-3)：" subtitle=""
+              ><p>
+                如果原片噪声多，压得烂，推荐使用；目前2倍模型支持了3个降噪等级；
+              </p></v-list-item
+            >
+            <v-list-item title="无降噪版(0)：" subtitle=""
+              ><p>
+                如果原片噪声不多，压得还行，但是想提高分辨率/清晰度/做通用性的增强、修复处理，推荐使用；
+              </p></v-list-item
+            >
+            <v-list-item title="保守版(-1)：" subtitle=""
+              ><p>
+                如果你担心丢失纹理，担心画风被改变，担心颜色被增强，总之就是各种担心AI会留下浓重的处理痕迹，推荐使用该版本；但对于来源较模糊、渣清的，修复程度不会比降噪版更好。
+              </p></v-list-item
+            >
+          </v-list>
+        </v-card-text>
+      </v-card>
+    </v-overlay>
   </v-app>
 </template>
 
