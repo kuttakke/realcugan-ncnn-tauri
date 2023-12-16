@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "realcugan-ncnn-tauri",
-    "version": "0.2.3"
+    "version": "0.2.4"
   },
   "tauri": {
     "allowlist": {
@@ -101,7 +101,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://gist.githubusercontent.com/kuttakke/61c29b8d37e8b0588c2e9da840db8062/raw"
+        "https://github.com/kuttakke/realcugan-ncnn-tauri/releases/latest/download/latest.json"
       ],
       "dialog": true,
       "windows": {

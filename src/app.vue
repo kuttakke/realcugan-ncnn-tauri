@@ -128,7 +128,7 @@ onMounted(() => {
     >
       <v-card v-intersect="onIntersect" class="mx-auto" max-width="336">
         <v-card-title :onclick="openGithub"
-          >realcugan-ncnn-tauri@v0.2.3</v-card-title
+          >realcugan-ncnn-tauri@v0.2.4</v-card-title
         >
         <v-card-subtitle>降噪参数解释</v-card-subtitle>
         <v-card-text>
@@ -157,6 +157,9 @@ onMounted(() => {
 
 <style>
 .v-app-bar-title {
+  user-select: none;
+}
+.v-footer {
   user-select: none;
 }
 
