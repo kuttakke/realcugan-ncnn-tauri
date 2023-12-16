@@ -290,7 +290,8 @@ const startMagnification = async () => {
               show-ticks="always"
               label="放大倍数"
               style="height: 50px"
-            ></v-slider>
+            >
+            </v-slider>
           </v-list-item>
           <v-list-item title="">
             <v-slider
@@ -394,8 +395,8 @@ const startMagnification = async () => {
             metaFields: [
               { id: 'name', name: 'Name', placeholder: 'file name' },
             ],
-            width:600,
-            height:300,
+            width: 600,
+            height: 300,
             hideUploadButton: true,
             disableStatusBar: true,
             locale: {
@@ -456,6 +457,10 @@ const startMagnification = async () => {
 <style>
 .v-input__details {
   display: none !important;
+}
+
+.v-list-item__content {
+  overflow: visible !important;
 }
 
 .container-real {
