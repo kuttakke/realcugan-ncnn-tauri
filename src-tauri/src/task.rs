@@ -2,15 +2,15 @@ use async_process::windows::CommandExt;
 use async_process::{Command, Stdio};
 use futures_lite::{io::BufReader, prelude::*};
 use log::{error, info};
+use serde::{Deserialize, Serialize};
 use std::io::Error;
 use std::path::Path;
-use std::time::{Duration, SystemTime};
+// use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use tauri::Manager;
 use tokio::fs::{remove_file, write};
-use tokio::sync::Mutex;
-use tokio::task;
-use serde::{Serialize, Deserialize};
+use tokio::sync::Semaphore;
 #[cfg(target_os = "windows")]
 use winapi::um::winbase::CREATE_NO_WINDOW;
 
@@ -48,12 +48,9 @@ pub async fn run_task(
     let input_file_path = format!("{}temp/{}", real_path_str, args.input_file);
     match &args.input_file_data {
         Some(data) => {
-                write(input_file_path.clone(), data).await?;
-                info!("input_file_path: {}", &input_file_path);
-        },
-        None => {
-            info!("not nedd to write file");
+            write(input_file_path.clone(), data).await?;
         }
+        None => {}
     }
 
     let path = Path::new(&input_file_path);
@@ -151,7 +148,6 @@ pub async fn run_task(
     return Ok(());
 }
 
-
 fn time_log(base: u64, info: &str) {
     // base 是由js的`new Date().getTime()`生成的
     let start_time = SystemTime::now();
@@ -167,12 +163,11 @@ fn time_log(base: u64, info: &str) {
     info!("Time {}: {} milliseconds", info, elapsed_ms);
 }
 
-
 #[tauri::command(async)]
 pub async fn run_all(
     app: tauri::AppHandle,
     args_list: Vec<RealcuganTaskArgs>,
-    max_tasks: i32,
+    max_tasks: u32,
     base_time: u64,
 ) -> Result<(), RealcuganResult> {
     time_log(base_time, "start");
@@ -199,30 +194,19 @@ pub async fn run_all(
         }
     };
 
-    let tasks = Arc::new(Mutex::new(0));
+    let semaphore = Arc::new(Semaphore::new(max_tasks as usize));
     let mut handles = vec![];
     for args in args_list {
         let app_handle = app.app_handle();
         let real_path_str_copy = real_path_str.clone();
-        let tasks_ref = Arc::clone(&tasks);
+        let semaphore = semaphore.clone();
         let handle = tokio::spawn(async move {
-            time_log(base_time, "task spawn check");
-            let mut guard = tasks_ref.lock().await;
-            while *guard >= max_tasks {
-                drop(guard);
-                task::yield_now().await;
-                guard = tasks_ref.lock().await;
-            }
-            *guard += 1;
-            time_log(base_time, &format!("task {:?} run", guard));
-            drop(guard);
-
+            let _permit = semaphore.acquire().await.unwrap();
+            time_log(base_time, &format!("task {:?} run", &args.input_file));
             run_task(app_handle, &args, &real_path_str_copy)
                 .await
                 .unwrap();
-            let mut guard = tasks_ref.lock().await;
-            time_log(base_time, &format!("task {:?} over", guard));
-            *guard -= 1;
+            time_log(base_time, &format!("task {:?} over", &args.input_file));
         });
         handles.push(handle);
     }
