@@ -36,7 +36,7 @@
     "vuetify": "3.3.7"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "1.4.0",
+    "@tauri-apps/cli": "1.5.8",
     "@vitejs/plugin-vue": "4.0.0",
     "cross-env": "7.0.3",
     "eslint": "^8.54.0",
