@@ -26,6 +26,7 @@ import ImageEditor from "@uppy/image-editor";
 import Chinese from "@uppy/locales/lib/zh_CN";
 import { Dashboard } from "@uppy/vue";
 import { useStorage } from "@vueuse/core";
+import { info } from "tauri-plugin-log-api";
 import { error } from "tauri-plugin-log-api";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useToast } from "vue-toastification";
@@ -39,6 +40,7 @@ const noise_level = useStorage("noise_level", -1);
 const is_tta = useStorage("is_tta", false);
 const format = useStorage("format", "png");
 const is_run_all = useStorage("is_run_all", true);
+const maxTasks = useStorage("max_tasks", 4);
 
 const fakeNoiseLevelTick = {
   0: "-1",
@@ -50,6 +52,15 @@ const isShowFakeNoiseLevel = ref(false);
 if (magnification.value !== 2) {
   isShowFakeNoiseLevel.value = true;
 }
+
+const chechPathExists = async () => {
+  if (!(await exists("temp", { dir: BaseDirectory.Resource }))) {
+    await createDir("temp", { dir: BaseDirectory.Resource });
+  }
+  if (!(await exists("result", { dir: BaseDirectory.Resource }))) {
+    await createDir("result", { dir: BaseDirectory.Resource });
+  }
+};
 
 watch(magnification, (newVal) => {
   if (newVal === 2) {
@@ -65,7 +76,6 @@ watch(fakeNoiseLevel, (newVal) => {
   noise_level.value = parseInt(fakeNoiseLevelTick[newVal]);
 });
 
-const files = ref([]);
 const is_running = ref(false);
 // const is_run_all = ref(true);
 const uppy = new Uppy({
@@ -88,7 +98,7 @@ const inserResultFiles = (img) => {
   // check is exist
   const index = resultFiles.value.findIndex((v) => v.mid === img.mid);
   if (index !== -1) {
-    console.log(index);
+    // console.log(index);
     resultFiles.value[index] = img;
   } else {
     resultFiles.value.push(img);
@@ -98,6 +108,7 @@ const inserResultFiles = (img) => {
 const $message = useToast();
 
 let unlisten = null;
+let unlistenRes = null;
 
 const changeFileProcessingStatus = (id, percent, status) => {
   const file = uppy.getFile(id);
@@ -121,17 +132,32 @@ const doneFileProcess = (id) => {
   }
 };
 
-const setStart = (files) => {
-  for (const file of files) {
-    uppy.setFileState(file.id, {
-      progress: { uploadStarted: true, percentage: 0 },
-    });
-  }
-};
-
 async function listen_run() {
   unlisten = await listen("run-status", async (event) => {
     changeFileProcessingStatus(event.payload.id, event.payload.percent, true);
+  });
+  unlistenRes = await listen("run-res", async (event) => {
+    if (event.payload.status === false) {
+      uppy.setFileState(event.payload.id, {
+        progress: { uploadComplete: false, uploadStarted: false },
+      });
+    } else if (event.payload.status === true) {
+      doneFileProcess(event.payload.id);
+      try {
+        const newUrl = convertFileSrc(
+          rawResourcePath + "result\\" + event.payload.output
+        );
+        const newImage = new Image();
+        newImage.src = newUrl;
+        newImage.url = newUrl;
+        newImage.resultFileName = event.payload.output;
+        newImage.mid = event.payload.id;
+
+        inserResultFiles(newImage);
+      } catch (error) {
+        $message.error("结果图片读取失败：" + event.payload.file);
+      }
+    }
   });
 }
 
@@ -143,6 +169,9 @@ onUnmounted(() => {
   if (unlisten != null) {
     unlisten();
   }
+  if (unlistenRes != null) {
+    unlistenRes();
+  }
 });
 
 const rawResourcePath = await resolveResource("");
@@ -152,16 +181,7 @@ const getresourceDir = () => {
     return appDataDirPath;
   } catch (e) {
     error(e);
-    console.log(e);
-  }
-};
-
-const chechPathExists = async () => {
-  if (!(await exists("temp", { dir: BaseDirectory.Resource }))) {
-    await createDir("temp", { dir: BaseDirectory.Resource });
-  }
-  if (!(await exists("result", { dir: BaseDirectory.Resource }))) {
-    await createDir("result", { dir: BaseDirectory.Resource });
+    // console.log(e);
   }
 };
 
@@ -174,26 +194,28 @@ const openResult = async () => {
   await new Command("openResult", [rp]).execute();
 };
 
-const invokeMagnificationAsync = async (file) => {
-  try {
-    const res = await invoke("run_realcugan", {
-      fileId: file.id,
-      inputFile: file.meta.name,
-      numMagnification: magnification.value,
-      numNoiseLevel: noise_level.value,
-      isTta: is_tta.value,
-      formatType: format.value,
-    });
-    file.resultFileName = res.output;
-    doneFileProcess(file.id);
-    return true;
-  } catch (e) {
-    $message.error(file.name + "图片处理失败: " + e.output);
-    return false;
-  }
-};
+// async function asyncPool(poolLimit, array, iteratorFn) {
+//   const ret = []; //2
+//   const executing = []; //3
+//   for (const item of array) {
+//     //4
+//     const p = Promise.resolve().then(() => iteratorFn(item)); //5
+//     ret.push(p); //6
+//     if (poolLimit <= array.length) {
+//       //7
+//       const e = p.then(() => executing.splice(executing.indexOf(e), 1)); //8
+//       executing.push(e); //9
+//       if (executing.length >= poolLimit) {
+//         //10
+//         await Promise.race(executing); //11
+//       }
+//     }
+//   }
+//   return Promise.all(ret); //15
+// }
 
-const magnificationOne = async (file) => {
+const readFile = async (file) => {
+  // return Array.from(new Uint8Array(await file.data.arrayBuffer()));
   const conetent = await file.data.arrayBuffer();
   // 保存至tempPath
   try {
@@ -206,71 +228,73 @@ const magnificationOne = async (file) => {
     );
   } catch (e) {
     $message.error("图片保存失败: " + file.meta.name);
-    return;
+    return null;
   }
-  let result = await invokeMagnificationAsync(file);
-  if (!result) {
-    return;
-  }
-
-  try {
-    const newUrl = convertFileSrc(
-      rawResourcePath + "result\\" + file.resultFileName
-    );
-    const newImage = new Image();
-    newImage.src = newUrl;
-    newImage.url = newUrl;
-    newImage.resultFileName = file.resultFileName;
-    newImage.mid = file.id;
-
-    // resultFiles.value.push(newImage);
-    inserResultFiles(newImage);
-  } catch (e) {
-    $message.error("结果图片保存失败: " + file.meta.name);
-  }
+  return null;
 };
 
-async function asyncPool(poolLimit, array, iteratorFn) {
-  const ret = []; //2
-  const executing = []; //3
-  for (const item of array) {
-    //4
-    const p = Promise.resolve().then(() => iteratorFn(item)); //5
-    ret.push(p); //6
-    if (poolLimit <= array.length) {
-      //7
-      const e = p.then(() => executing.splice(executing.indexOf(e), 1)); //8
-      executing.push(e); //9
-      if (executing.length >= poolLimit) {
-        //10
-        await Promise.race(executing); //11
-      }
-    }
-  }
-  return Promise.all(ret); //15
-}
-
-const startMagnification = async () => {
+const makeArgs = async () => {
   const ufiles = uppy.getFiles();
   const realFiles = ufiles.filter(
     (item) => !resultFiles.value.some((res) => res.mid === item.id)
   );
   if (realFiles.length === 0) {
     $message.error("没有需要处理的图片");
+    return {
+      argsList: [],
+      maxTasks: maxTasks.value,
+    };
+  }
+  const res = await Promise.all(
+    [...realFiles].map(async (file) => {
+      return {
+        file_id: file.id,
+        input_file: file.meta.name,
+        input_file_data: await readFile(file),
+        num_magnification: magnification.value,
+        num_noise_level: noise_level.value,
+        is_tta: is_tta.value,
+        format_type: format.value,
+      };
+    })
+  );
+  // console.log(JSON.stringify(res));
+  return {
+    argsList: res,
+    maxTasks: maxTasks.value,
+    baseTime: new Date().getTime(),
+  };
+};
+const devTime = ref(0);
+const runTauriSideTask = async () => {
+  devTime.value = 0;
+  const interval = setInterval(() => {
+    devTime.value += 100;
+  }, 100);
+  await chechPathExists();
+  const args = await makeArgs();
+  if (args.argsList.length === 0) {
+    clearInterval(interval);
     return;
   }
   is_running.value = true;
-  setStart(realFiles);
-  await chechPathExists();
-  if (is_run_all.value) {
-    await asyncPool(4, realFiles, magnificationOne);
-  } else {
-    for (const file of files.value) {
-      await magnificationOne(file);
-    }
-  }
-  is_running.value = false;
-  $message.success("✨所有任务完成🎈");
+
+  // then version
+  invoke("run_all", args)
+    .then((res) => {
+      clearInterval(interval);
+      is_running.value = false;
+      $message.success("✨所有任务完成🎈\n耗时 " + devTime.value / 1000 + " s");
+      info("webview task over:" + JSON.stringify(res));
+      devTime.value = 0;
+    })
+    .catch((e) => {
+      is_running.value = false;
+      $message.error("运行错误" + e);
+      clearInterval(interval);
+      devTime.value = 0;
+      // console.log(e);
+    });
 };
 </script>
 
@@ -368,12 +392,12 @@ const startMagnification = async () => {
           <v-list-item title="" class="mt-3">
             <v-btn
               color="primary"
-              @click="startMagnification"
-              :loading="is_running"
+              @click="runTauriSideTask"
+
               :disabled="is_running"
               :outlined="true"
             >
-              <span class="hidden-sm-and-down">开始</span>
+              <span class="hidden-sm-and-down">{{ devTime === 0 ? "开始" : (devTime / 1000) + "s"  }}</span>
             </v-btn>
             <template v-slot:append>
               <v-btn @click="openResult" color="primary">

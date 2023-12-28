@@ -9,7 +9,7 @@ use crate::{
  
 mod utils;
 
-use realcugan_ncnn_tauri::realcugan;
+use realcugan_ncnn_tauri::task;
 use tauri_plugin_log::{fern::colors::ColoredLevelConfig, LogTarget};
 
 #[cfg(debug_assertions)]
@@ -36,7 +36,7 @@ fn main() {
                 .build(),
         )
         .plugin(sentry_tauri::plugin()) // sentry
-        .invoke_handler(tauri::generate_handler![realcugan::run_realcugan])
+        .invoke_handler(tauri::generate_handler![task::run_all])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
